@@ -3,21 +3,6 @@ package ncreep.common
 import io.circe.*
 import scala.compiletime.*
 
-// asserting at compile-time that a given type is a tuple type
-type IsTuple[T <: Tuple] <: Tuple = T match
-  case T => T
-
-type TupledDecoders[T <: Tuple] = T match
-  case EmptyTuple => Decoder[EmptyTuple]
-  case Decoder[h] *: t => MapCons[h, TupledDecoders[t]]
-
-type DecoderForTuple[T <: Tuple] = T match
-  case EmptyTuple => Decoder[EmptyTuple]
-  case h *: t => MapCons[h, DecoderForTuple[t]]
-
-type MapCons[H, DT] = DT match
-  case Decoder[IsTuple[t]] => Decoder[H *: IsTuple[t]]
-
 inline def tupleToJson(tuple: Tuple): List[JsonObject] =
   inline tuple match
     case EmptyTuple => Nil
@@ -28,17 +13,19 @@ inline def tupleToJson(tuple: Tuple): List[JsonObject] =
 
       json :: tupleToJson(tup.tail)
 
-inline def decodeTuple[T <: Tuple]: DecoderForTuple[T] =
-  inline erasedValue[T] match
-    case _: EmptyTuple => Decoder.const(EmptyTuple)
-    case _: (h *: t) =>
+// a helper for pattern-matching
+trait Is[A]
+
+inline def decodeTuple[T <: Tuple]: Decoder[T] = 
+  inline erasedValue[Is[T]] match
+    case _: Is[EmptyTuple] => Decoder.const(EmptyTuple)
+    case _: Is[h *: t] =>
       val decoder = summonInline[Decoder[h]]
 
-      mapCons(decoder, decodeTuple[t])
-
-inline def mapCons[H, DT](h: Decoder[H], t: DT): MapCons[H, DT] =
-  inline t match
-    case tail: Decoder[IsTuple[t]] => h.product(tail).map(_ *: _)
+      combineDecoders(decoder, decodeTuple[t])
 
 def concatObjects(jsons: List[JsonObject]): Json = 
   Json.obj(jsons.flatMap(_.toList): _*)
+
+def combineDecoders[H, T <: Tuple](dh: Decoder[H], dt: Decoder[T]): Decoder[H *: T] =
+  dh.product(dt).map(_ *: _)
