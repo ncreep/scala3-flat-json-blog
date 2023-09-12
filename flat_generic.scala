@@ -29,10 +29,6 @@ inline def makeCodec[A <: Product](
     concatObjects(jsons)
 
   val tupleDecoder = decodeTuple[mirror.MirroredElemTypes]
-  val decoder = // need the pattern-match because the match-type we produce is
-    // "opaque" tho the type checker, and it can't prove that it's a `Decoder[...]`
-    inline tupleDecoder match
-      case d: Decoder[mirror.MirroredElemTypes] =>
-        d.map(mirror.fromTuple)
+  val decoder = tupleDecoder.map(mirror.fromTuple)
 
   Codec.from(decoder, encoder)
