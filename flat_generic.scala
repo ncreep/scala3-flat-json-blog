@@ -28,7 +28,7 @@ inline def makeCodec[A <: Product](
 
     concatObjects(jsons)
 
-  val tupleDecoder = decodeTuple[mirror.MirroredElemTypes]
-  val decoder = tupleDecoder.map(mirror.fromTuple)
+  val decoder = 
+    decodeTuple[mirror.MirroredElemTypes].map(mirror.fromTuple)
 
   Codec.from(decoder, encoder)
