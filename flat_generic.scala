@@ -2,13 +2,14 @@ package ncreep.flat_generic
 
 import io.circe.*
 import ncreep.common.*
-import ncreep.duplicate_fields.*
+import ncreep.error_generation.*
 import ncreep.model.*
 
 import scala.deriving.Mirror
 
 @main def test(): Unit =
   val codec = makeCodec[User]
+  // val codec2 = makeCodec[User2] // does not compile
 
   val json = codec(user)
 
@@ -20,7 +21,7 @@ end test
 inline def makeCodec[A <: Product](
     using mirror: Mirror.ProductOf[A]): Codec[A] =
 
-  checkDuplicateFields[mirror.MirroredElemTypes]
+  checkDuplicateFields[A]
 
   val encoder = Encoder.instance[A]: value =>
     val fields = Tuple.fromProductTyped(value)

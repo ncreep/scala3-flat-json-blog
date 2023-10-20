@@ -1,98 +1,40 @@
-package ncreep.duplicate_fields
+package ncreep.error_generation
 
-import ncreep.common.*
-
+import scala.Tuple.*
 import scala.compiletime.*
-import scala.compiletime.ops.any.*
-import scala.compiletime.ops.boolean.*
-import scala.compiletime.ops.int.{+ => _, *}
 import scala.compiletime.ops.string.*
 import scala.deriving.Mirror
 
-import Tuple.*
-
-inline def checkDuplicateFields[T <: Tuple]: Unit =
+inline def checkDuplicateFields[A](using mirror: Mirror.ProductOf[A]): Unit =
   // Not possible to assign to a `val` as type inference loses precise type information
-  inline makeLabellings[T] match
-    case _: Typed[labels] =>
-      // can't extract into a type alias, as it breaks `constValue`
-      renderDuplicatesError[OnlyDuplicates[GroupLabels[FlatMap[labels, ZipLabels]]]]
+  inline makeLabellings[mirror.MirroredElemTypes] match
+    case labels => renderDuplicatesError[labels.Value]
 
-inline def renderDuplicatesError[T <: Tuple] =
-  inline erasedValue[T] match
-    case _: NonEmptyTuple => error(constValue["Duplicate fields found:\n" ++ RenderError[T]])
-    case _ => ()
+inline def renderDuplicatesError[Labellings <: Tuple] =
+  type Duplicates = FindDuplicates[Labellings]
+  
+  inline erasedValue[Duplicates] match
+    case _: EmptyTuple => ()
+    case _: (h *: t) => error(constValue[RenderError[h *: t]])
 
-// although we can do this at the value-level, the 'error' functions limits us to using only
+// although we can do this at the value-level, the 'error' function limits us to using only
 // string literals and '+', so working at the value-level doesn't simplify much, and at the type-level
 // we can use higher-level functions like `map` and `fold`
-type RenderError[T <: Tuple] =
+type RenderError[LabelsWithSources <: Tuple] =
   // using the custom ++ instead of + because + is bound to work only on <: String, and we can't prove that here
-  Fold[Map[T, RenderGroup], "", ++]
+  "Duplicate fields found:\n" ++ 
+    Fold[RenderLabelsWithSources[LabelsWithSources], "", [a, b] =>> a ++ "\n" ++ b]
 
-type RenderGroup[T] <: String = T match
-  case (label, sources) => "- " ++ label ++ " from " ++ MkString[sources] ++ "\n"
+type RenderLabelsWithSources[LabelsWithSources <: Tuple] = 
+  Map[LabelsWithSources, RenderLabelWithSource]
+
+type RenderLabelWithSource[LabelWithSources] <: String = LabelWithSources match
+  case (label, sources) => "- [" ++ label ++ "] from [" ++ MkString[sources] ++ "]"
 
 // "unsafe" if running on an empty tuple
 type MkString[T <: Tuple] =
   Fold[Init[T], Last[T], [a, b] =>> a ++ ", " ++ b]
 
-type GroupLabels[T <: Tuple] <: Tuple = T match
-  case EmptyTuple => EmptyTuple
-  case (label, source) *: t =>
-    ((label, source *: FindLabel[label, t])) *: GroupLabels[RemoveLabel[label, t]]
-
-type Size[T] <: Int = T match
-  case EmptyTuple => 0
-  case x *: xs => S[Size[xs]]
-
-type OnlyDuplicates[T <: Tuple] = Filter[T, [t] =>> Size[Second[t]] > 1]
-
-type FindLabel[Label, T <: Tuple] =
-  Filter[T, [ls] =>> HasLabel[Label, ls]] Map Second
-
-type RemoveLabel[Label, T <: Tuple] =
-  Filter[T, [ls] =>> ![HasLabel[Label, ls]]]
-
-type Second[T] = T match
-  case (a, b) => b
-
-type HasLabel[Label, LS] <: Boolean = LS match
-  case (l, s) => Label == l
-
-class Labelling[Label <: String, ElemLabels <: Tuple]
-
-type IsMirror[M <: Mirror] <: Mirror = M match
-  case Mirror => M
-
-class Typed[A]:
-  type Value = A
-
-transparent inline def makeLabellings[T <: Tuple]: Typed[_ <: Tuple] =
-  inline erasedValue[T] match
-    case EmptyTuple => Typed[EmptyTuple]
-    case _: (h *: t) =>
-      // the pattern-matches below are needed to force the compiler to use the most precise
-      // type for the values we are summoning
-      inline makeLabellings[t] match
-        case _: Typed[ls] =>
-          inline summonInline[Mirror.Of[h]] match
-            case m: IsMirror[m] =>
-              // doing this redundant assignment to satisfy the compiler:
-              // https://github.com/lampepfl/dotty/issues/18010
-              val x = Typed[Prepend[Labelling[m.MirroredLabel, m.MirroredElemLabels], ls]]
-
-              x
-
-// a workaround for *: not working in certain cases:
-// https://github.com/lampepfl/dotty/issues/18011
-type Prepend[X, +Y <: Tuple] <: Tuple = X match
-  case X => X *: Y
-
-type ZipWithConst[T <: Tuple, A] = Map[T, [t] =>> (t, A)]
-
-type ZipLabels[L] <: Tuple = L match
-  case Labelling[label, elemLabels] => ZipWithConst[elemLabels, label]
-
+// A more loosely-typed version of `+`
 type ++[A, B] <: String = (A, B) match
   case (a, b) => a + b
