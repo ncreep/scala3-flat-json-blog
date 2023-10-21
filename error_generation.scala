@@ -10,7 +10,7 @@ inline def checkDuplicateFields[A](using mirror: Mirror.ProductOf[A]): Unit =
   inline makeLabellings[mirror.MirroredElemTypes] match
     case labels => renderDuplicatesError[labels.Value]
 
-inline def renderDuplicatesError[Labellings <: Tuple] =
+inline def renderDuplicatesError[Labellings <: Tuple]: Unit =
   type Duplicates = FindDuplicates[Labellings]
   
   inline erasedValue[Duplicates] match
@@ -26,7 +26,7 @@ type RenderError[LabelsWithSources <: Tuple] =
     Fold[RenderLabelsWithSources[LabelsWithSources], "", [a, b] =>> a ++ "\n" ++ b]
 
 type RenderLabelsWithSources[LabelsWithSources <: Tuple] = 
-  Map[LabelsWithSources, RenderLabelWithSource]
+  LabelsWithSources Map RenderLabelWithSource
 
 type RenderLabelWithSource[LabelWithSources] <: String = LabelWithSources match
   case (label, sources) => "- [" ++ label ++ "] from [" ++ MkString[sources] ++ "]"

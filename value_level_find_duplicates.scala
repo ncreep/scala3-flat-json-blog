@@ -24,10 +24,10 @@ end testFindDuplicates
 case class ValueLabelling(label: String, elemLabels: List[String])
 
 def findDuplicates(labellings: List[ValueLabelling]): List[(String, List[String])] =
-  onlyDuplicates(groupByLabels(zipWithSource(labellings)))
+  onlyDuplicates(groupByLabels(zipAllWithSource(labellings)))
 
-def zipWithSource(labellings: List[ValueLabelling]): List[(String, String)] =
-  labellings.flatMap(zipLabels)
+def zipAllWithSource(labellings: List[ValueLabelling]): List[(String, String)] =
+  labellings.flatMap(zipWithSource)
 
 def groupByLabels(labels: List[(String, String)]): List[(String, List[String])] =
   labels match // a non-efficient groupBy implementation
@@ -47,7 +47,7 @@ def removeLabel(label: String, labels: List[(String, String)]): List[(String, St
 def hasLabel(label: String, labelSource: (String, String)): Boolean =
   label == labelSource._1
 
-def zipLabels(labelling: ValueLabelling): List[(String, String)] =
+def zipWithSource(labelling: ValueLabelling): List[(String, String)] =
   zipWithConst(labelling.elemLabels, labelling.label)
 
 def zipWithConst[A, B](ls: List[A], const: B): List[(A, B)] =

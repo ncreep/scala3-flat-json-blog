@@ -8,7 +8,7 @@ import scala.compiletime.ops.int.*
 type FindDuplicates[Labellings <: Tuple] = 
   OnlyDuplicates[GroupByLabels[ZipAllWithSource[Labellings]]]
 
-type ZipAllWithSource[Labellings <: Tuple] = Labellings FlatMap ZipLabels
+type ZipAllWithSource[Labellings <: Tuple] = Labellings FlatMap ZipWithSource
 
 type GroupByLabels[Labels <: Tuple] <: Tuple = Labels match
   case EmptyTuple => EmptyTuple
@@ -26,7 +26,7 @@ type RemoveLabel[Label, T <: Tuple] =
 type HasLabel[Label, LS] <: Boolean = LS match
   case (l, s) => Label == l
 
-type ZipLabels[L] <: Tuple = L match
+type ZipWithSource[L] <: Tuple = L match
   case Labelling[label, elemLabels] => ZipWithConst[elemLabels, label]
 
 type ZipWithConst[T <: Tuple, A] = Map[T, [t] =>> (t, A)]
@@ -37,4 +37,3 @@ type Second[T] = T match
 type Size[T] <: Int = T match
   case EmptyTuple => 0
   case x *: xs => 1 + Size[xs]
-
