@@ -15,13 +15,13 @@ type GroupByLabels[Labels <: Tuple] <: Tuple = Labels match
   case (label, source) *: t =>
     ((label, source *: FindLabel[label, t])) *: GroupByLabels[RemoveLabel[label, t]]
 
-type OnlyDuplicates[Labels <: Tuple] = Filter[Labels, [t] =>> Size[Second[t]] > 1]
+type OnlyDuplicates[Labels <: Tuple] = Labels Filter ([t] =>> Size[Second[t]] > 1)
 
 type FindLabel[Label, T <: Tuple] =
-  Filter[T, [ls] =>> HasLabel[Label, ls]] Map Second
+  T Filter ([ls] =>> HasLabel[Label, ls]) Map Second
 
 type RemoveLabel[Label, T <: Tuple] =
-  Filter[T, [ls] =>> ![HasLabel[Label, ls]]]
+  T Filter ([ls] =>> ![HasLabel[Label, ls]])
 
 type HasLabel[Label, LS] <: Boolean = LS match
   case (l, s) => Label == l
@@ -29,7 +29,7 @@ type HasLabel[Label, LS] <: Boolean = LS match
 type ZipWithSource[L] <: Tuple = L match
   case Labelling[label, elemLabels] => ZipWithConst[elemLabels, label]
 
-type ZipWithConst[T <: Tuple, A] = Map[T, [t] =>> (t, A)]
+type ZipWithConst[T <: Tuple, A] = T Map ([t] =>> (t, A))
 
 type Second[T] = T match
   case (a, b) => b
